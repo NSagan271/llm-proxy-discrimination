@@ -40,18 +40,27 @@ def main(
             )
     
     df = pd.DataFrame(data)
-    df = df[df["city_country"].str.match(".*(United States|USA).*", case=True)]
+    df["merged_income_level"] = df["income_level"].replace(
+        {"very high": "high"}
+    )
 
-    income_levels = df["income_level"].unique()
+    # 18–34, 35–54, 55+:
+    df["age_range"] = pd.cut(
+        df["age"], bins=[17, 34, 54, 100], labels=["18-34", "35-54", "55+"]
+    )
+
+    income_levels = df["merged_income_level"].unique()
     genders = df["sex"].unique()
+    age_ranges = df["age_range"].unique()
 
     boxes = {}
-    for (income, gender) in itertools.product(income_levels, genders):
-        box = df[(df["income_level"] == income) & (df["sex"] == gender)]["author"].unique()
+    for (income, gender, age) in itertools.product(income_levels, genders, age_ranges):
+        box = df[(df["merged_income_level"] == income) & (df["sex"] == gender) & (df["age_range"] == age)]["author"].unique()
         if len(box):
-            boxes[(income, gender)] = box
-    
+            boxes[(income, gender, age)] = box
+
     samples_per_box = (min_num_samples + len(boxes) - 1) // len(boxes)
+    print(len(boxes), "boxes found. Sampling", samples_per_box, "per box.")
 
     time = datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
     output_dir += f"/{time}"
@@ -60,7 +69,7 @@ def main(
 
     for i in range(num_trials):
         trial = []
-        for (income, gender), box in boxes.items():
+        for (income, gender, age_range), box in boxes.items():
             np.random.seed(seed + i)
             samples = np.random.choice(box, size=min(samples_per_box, len(box)), replace=False)
 
@@ -96,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="outputs", help="Directory to store outputs")
     parser.add_argument("--num_samples", type=int, default=15, help="Number of samples to process")
     parser.add_argument("--num_trials", type=int, default=10, help="Number of times to generate samples")
-    parser.add_argument("--max_texts_per_person", type=int, default=10, help="Maximum number of texts to include per unique person")
+    parser.add_argument("--max_texts_per_person", type=int, default=3, help="Maximum number of texts to include per unique person")
     args = parser.parse_args()
     main(
         data_dir=args.data_dir,
