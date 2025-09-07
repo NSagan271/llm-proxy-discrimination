@@ -106,11 +106,13 @@ if __name__ == "__main__":
     parser.add_argument("--num_samples", type=int, default=15, help="Number of samples to process")
     parser.add_argument("--num_trials", type=int, default=10, help="Number of times to generate samples")
     parser.add_argument("--max_texts_per_person", type=int, default=3, help="Maximum number of texts to include per unique person")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
     main(
         data_dir=args.data_dir,
         output_dir=args.output_dir,
         min_num_samples=args.num_samples,
         num_trials=args.num_trials,
-        max_texts_per_person=args.max_texts_per_person
+        max_texts_per_person=args.max_texts_per_person,
+        seed=args.seed
     )
