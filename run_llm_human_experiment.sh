@@ -5,7 +5,7 @@ time python llm_human_experiment.py \
   --output_dir outputs/llm_human_experiment \
   --prompt_file prompts/staab_et_al_query_partial_attributes.txt \
   --system_prompt_file prompts/staab_et_al_system.txt \
-  --model_names openai/o3 \
-  --temperatures 0 \
+  --model_names deepseek/deepseek-chat-v3-0324 openai/o3 openai/gpt-4o \
+  --temperatures 0 0.2 0.4 0.6 \
   --top_p 0.9 \
   --max_threads 5
