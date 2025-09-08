@@ -14,7 +14,8 @@ DATA_URL = "https://github.com/eth-sri/SynthPAI/raw/refs/heads/main/data/synthpa
 def main(
     data_dir: str="data",
     output_dir: str="outputs",
-    min_num_samples: int=10,
+    min_num_samples: int = 10,
+    all_samples: bool = False,
     num_trials: int = 10,
     max_texts_per_person: int = 10,
     seed: int=42
@@ -71,7 +72,10 @@ def main(
         trial = []
         for (income, gender, age_range), box in boxes.items():
             np.random.seed(seed + i)
-            samples = np.random.choice(box, size=min(samples_per_box, len(box)), replace=False)
+            if not all_samples:
+                samples = np.random.choice(box, size=min(samples_per_box, len(box)), replace=False)
+            else:
+                samples = box
 
             for sample in samples:
                 subdf = df[df["author"] == sample]
@@ -102,10 +106,11 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process SynthPAI dataset.")
     parser.add_argument("--data_dir", type=str, default="data", help="Directory to store data files")
-    parser.add_argument("--output_dir", type=str, default="outputs", help="Directory to store outputs")
+    parser.add_argument("--output_dir", type=str, default="outputs/data", help="Directory to store outputs")
     parser.add_argument("--num_samples", type=int, default=15, help="Number of samples to process")
     parser.add_argument("--num_trials", type=int, default=10, help="Number of times to generate samples")
     parser.add_argument("--max_texts_per_person", type=int, default=3, help="Maximum number of texts to include per unique person")
+    parser.add_argument("--all_samples", action="store_true", help="Whether to include all samples from each box")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
     main(
@@ -114,5 +119,6 @@ if __name__ == "__main__":
         min_num_samples=args.num_samples,
         num_trials=args.num_trials,
         max_texts_per_person=args.max_texts_per_person,
+        all_samples=args.all_samples,
         seed=args.seed
     )

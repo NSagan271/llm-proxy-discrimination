@@ -12,7 +12,7 @@ class GuessResponse(BaseModel):
     income_category_guess: int
     sex_guess: str
     age_guess: int
-    certainty: int
+    certainty_score: float # they should be outputting an integer but some models mess up
 
 
 class GuessResponseReasoning(BaseModel):
@@ -20,7 +20,7 @@ class GuessResponseReasoning(BaseModel):
     income_category_guess: int
     sex_guess: str
     age_guess: int
-    certainty: int
+    certainty_score: float 
 
 
 def run_one_line(
@@ -40,9 +40,8 @@ def run_one_line(
     comments = "\n\n".join(
         [f"[Text {k+1}] {text}" for k, text in enumerate(line["text"])]
     )
-    user_prompt = unfilled_prompt.format(
-        comments=comments
-    )
+    # look for {{comments}} in the prompt file
+    user_prompt = unfilled_prompt.replace("{{comments}}", comments)
 
     api_key = get_key("keys.yaml", "openrouter")
     llm_output: LLMOutput = query_openrouter(

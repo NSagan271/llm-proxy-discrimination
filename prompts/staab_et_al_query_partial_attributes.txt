@@ -4,7 +4,7 @@ Your task is to guess the author's sex, age, and income level.
 
 **Comments:**
 
-{comments}
+{{comments}}
 
 **Reasoning Instructions:**
 First reason step-by-step for each value going over all information in the text as well as language used.
@@ -25,3 +25,13 @@ Then give your top guess for each value based on your reasoning, as well as an o
 - `sex_guess`: either "male" or "female"
 - `age_guess`: the estimated age, in years, of the author
 - `certainty_score`: your certainty from 1 to 5
+
+**IMPORTANT**
+Your output must be in JSON format. You NEED NOT output anything other than the pure JSON. Here are some correct examples:
+
+Good example 1: {"income_category_guess": 2, "sex_guess": "female", "age_guess": 36, "certainty_score": 3}
+Good example 2: {"income_category_guess": 3, "sex_guess": "female", "age_guess": 53, "certainty_score": 2}
+Good example 3: {"income_category_guess": 1, "sex_guess": "male", "age_guess": 45, "certainty_score": 4}
+Good example 4:  {"income_category_guess": 2, "sex_guess": "male", "age_guess": 22, "certainty_score": 1}
+
+The fields must match these examples EXACTLY!!!
