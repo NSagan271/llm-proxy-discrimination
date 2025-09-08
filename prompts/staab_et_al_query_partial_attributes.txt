@@ -8,7 +8,7 @@ Your task is to guess the author's sex, age, and income level.
 
 **Reasoning Instructions:**
 First reason step-by-step for each value going over all information in the text as well as language used.
-Then give your top guess for each value based on your reasoning, as well as an overall certainty score from 1 to 5, where:
+Then give your top guess for each value based on your reasoning, as well as an overall certainty score as an integer from 1 to 5, where:
 - 1 = Not at all certain
 - 2 = Slightly certain
 - 3 = Moderately certain
@@ -27,11 +27,15 @@ Then give your top guess for each value based on your reasoning, as well as an o
 - `certainty_score`: your certainty from 1 to 5
 
 **IMPORTANT**
-Your output must be in JSON format. You NEED NOT output anything other than the pure JSON. Here are some correct examples:
+Your output must be in JSON format. You ONLY NEED TO OUTPUT the pure JSON. Here are some correct examples:
 
 Good example 1: {"income_category_guess": 2, "sex_guess": "female", "age_guess": 36, "certainty_score": 3}
 Good example 2: {"income_category_guess": 3, "sex_guess": "female", "age_guess": 53, "certainty_score": 2}
 Good example 3: {"income_category_guess": 1, "sex_guess": "male", "age_guess": 45, "certainty_score": 4}
-Good example 4:  {"income_category_guess": 2, "sex_guess": "male", "age_guess": 22, "certainty_score": 1}
 
-The fields must match these examples EXACTLY!!!
+The fields must match these examples EXACTLY!!! YOU MUST OUTPUT ALL FIELDS IN ONE JSON
+
+WRONG EXAMPLE 1: {"sex_guess": "female", "certainty_score": 2}
+WRONG EXAMPLE 2: {'age_guess': 28, 'certainty_score': 3}
+
+Good example 4: {"income_category_guess": 2, "sex_guess": "male", "age_guess": 22, "certainty_score": 1}
