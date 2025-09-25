@@ -13,6 +13,7 @@ class LLMOutput:
     response: BaseModel
     cost: float
     success: bool = True
+    num_retries: int = 0
 
 
 def compute_cost_openrouter(
@@ -48,8 +49,9 @@ def query_openrouter(
     parsed = None
     total_input_tokens = 0
     total_output_tokens = 0
+    num_retries = 0
 
-    for i in range(max_retries):
+    for i in range(max_retries+1):
         try:
             response = client.chat.completions.create(
                 model=model_name,
@@ -71,11 +73,13 @@ def query_openrouter(
                     parsed = response_model.model_validate_json(match)
                     break
                 except BaseException as e:
-                    print(f"Error parsing JSON in match: {e}", file=sys.stderr)
+                    # print(f"Error parsing JSON in match: {e}", file=sys.stderr)
                     continue
             assert parsed is not None, f"Could not parse JSON in the output: {content}"
+            num_retries = i
+            break
         except BaseException as e:
-            print(f"Error querying OpenRouter: {e}", file=sys.stderr)
+            print(f"Error querying OpenRouter for model {model_name} (T={temperature}, P={top_p}) at attempt {i}: {e}", file=sys.stderr)
             if 'X-RateLimit-Reset' in str(e):
                 reset_time = int(re.search(r'X-RateLimit-Reset\'\: \'(\d+)', str(e)).group(1))
                 current_time = int(time.time() * 1000)
@@ -89,7 +93,8 @@ def query_openrouter(
         return LLMOutput(
             response=None,
             cost=compute_cost_openrouter(model_name, total_input_tokens, total_output_tokens, api_key),
-            success=False
+            success=False,
+            num_retries=max_retries
         )
     # print(parsed)
 
@@ -97,6 +102,8 @@ def query_openrouter(
     return LLMOutput(
         response=parsed,
         cost=compute_cost_openrouter(model_name, total_input_tokens, total_output_tokens, api_key),
+        success=True,
+        num_retries=num_retries
     )
 
 def get_key(file: str, type: str):

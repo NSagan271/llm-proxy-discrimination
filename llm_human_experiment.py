@@ -105,12 +105,13 @@ def run_for_one_configuration(
             "author": obj["author"],
             "success": llm_output.success,
             "llm_output": json.loads(llm_output.response.model_dump_json()) if llm_output.success else None,
+            "num_retries": llm_output.num_retries,
             "author_data": obj,
+            "cost": llm_output.cost,
             "llm_config": {
                 "model_name": model_name,
                 "temperature": temperature,
                 "top_p": top_p,
-                "cost": llm_output.cost
             }
         })
     
