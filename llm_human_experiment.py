@@ -127,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--prompt_file", type=str, required=True)
     parser.add_argument("--system_prompt_file", type=str, required=True)
-    parser.add_argument("--model_names", nargs='+', type=str, default=["openai/o3"])
+    parser.add_argument("--model_names_file", type=str, default="model_names.txt", help="File containing model names, one per line")
     parser.add_argument("--temperatures", nargs='+', type=float, default=[0.7])
     parser.add_argument("--top_p", type=float, default=1.0)
     parser.add_argument("--max_threads", type=int, default=5)
@@ -141,7 +141,11 @@ if __name__ == "__main__":
         print(f"Starting trial {trial+1}/{args.num_trials}")
         output_dir = f"{args.output_dir}/trial_{trial+1}"
         os.makedirs(output_dir, exist_ok=True)
-        for model_name in args.model_names:
+
+        with open(args.model_names_file, "r") as f:
+            model_names = [line.strip() for line in f if line.strip()]
+
+        for model_name in model_names:
             for temperature in args.temperatures:
                 total_overall_cost += run_for_one_configuration(
                     jsonl_input_file=args.jsonl_input_file,

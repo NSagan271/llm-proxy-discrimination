@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import re
 import subprocess
 import pandas as pd
 import jsonlines
@@ -61,11 +62,14 @@ def main(
             boxes[(income, gender, age)] = box
 
     samples_per_box = (min_num_samples + len(boxes) - 1) // len(boxes)
-    print(len(boxes), "boxes found. Sampling", samples_per_box, "per box.")
+    if not all_samples:
+        print(len(boxes), "boxes found. Sampling", samples_per_box, "per box.")
+    else:
+        print(len(boxes), "boxes found. Using all samples in each box.")
 
     time = datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss")
     output_dir += f"/{time}"
-    os.makedirs(f"{output_dir}/jsonl", exist_ok=True)
+    os.makedirs(f"{output_dir}/machine_readable", exist_ok=True)
     os.makedirs(f"{output_dir}/human_readable", exist_ok=True)
 
     for i in range(num_trials):
@@ -81,13 +85,30 @@ def main(
                 subdf = df[df["author"] == sample]
                 row = subdf.iloc[0].to_dict()
                 texts = subdf["text"].tolist()
-                row["text"] = list(np.random.choice(texts, min(max_texts_per_person, len(texts)), replace=False))
+                row["text"] = []
+                for text in np.random.choice(texts, min(max_texts_per_person, len(texts)), replace=False):
+                    # some comments are in the form Question: ...\nQuestion description: ...
+                    # For those, only keep the part after "Question description:"
+                    match = re.search(r"Question description:\s*(.*)", text)
+                    if match:
+                        row["text"].append(match.group(1))
+                    else:
+                        row["text"].append(text)        
                 trial.append(row)
 
-        output_path = os.path.join(output_dir, f"jsonl/synthpai_samples_trial_{i+1}.jsonl")
+        output_path = os.path.join(output_dir, f"machine_readable/synthpai_samples_trial_{i+1}.jsonl")
         with open(output_path, "w") as f:
             with jsonlines.Writer(f) as writer:
                 writer.write_all(trial)
+
+        # also save as TSV
+        df_trial = pd.read_json(output_path, lines=True)
+        df_subset = df_trial[["author"]]
+        for i in range(3):
+            df_subset[f"text{i+1}"] = df_trial["text"].apply(lambda x: x[i] if len(x) > i else "")
+        tsv_path = os.path.join(output_dir, f"machine_readable/synthpai_samples_trial_{i+1}.tsv")
+        df_subset.to_csv(tsv_path, sep="\t", index=False)
+        
 
         # Write human-readable output for each trial
         human_readable_path = os.path.join(output_dir, f"human_readable/synthpai_samples_trial_{i+1}.txt")
@@ -122,3 +143,9 @@ if __name__ == "__main__":
         all_samples=args.all_samples,
         seed=args.seed
     )
+
+"""
+Example usage
+
+> python make_datasets.py --data_dir data --num_trials 1 --output_dir outputs/data --max_texts_per_person 3 --all_samples
+"""

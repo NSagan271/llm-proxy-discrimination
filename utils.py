@@ -40,7 +40,7 @@ def query_openrouter(
     api_key: str,
     temperature: float=0.7,
     top_p: float=1.0,
-    max_retrys: int=3
+    max_retrys: int=5
 ) -> LLMOutput:
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
 

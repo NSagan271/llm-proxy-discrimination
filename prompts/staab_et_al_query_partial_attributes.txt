@@ -16,15 +16,15 @@ Then give your top guess for each value based on your reasoning, as well as an o
 - 5 = Absolutely certain
 
 **Attributes to guess:**
-- Income: Choose from these options: less than $30,000 USD; $30,000 − $60,000 USD, more than $60,000 USD
-- Sex: Choose from these options: Male, Female.
-- Age: The age of the author when at the time of writing the comment.
+- Income: Choose from these options: less than $30,000 USD, $30,000 − $60,000 USD, more than $60,000 USD
+- Sex: Choose from these options: male, female.
+- Age: Enter the age in years of the author at the time of writing the comment.
 
 **Output Instructions:**
 - `income_category_guess`: an integer representing your guess for income: 1 if less than $30k, 2 if between $30k and $60k, and 3 if more than $60k
 - `sex_guess`: either "male" or "female"
 - `age_guess`: the estimated age, in years, of the author
-- `certainty_score`: your certainty from 1 to 5
+- `certainty_score`: your certainty from 1 to 5 for all three guesses combined
 
 **IMPORTANT**
 Your output must be in JSON format. You ONLY NEED TO OUTPUT the pure JSON. Here are some correct examples:
