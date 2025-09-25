@@ -12,7 +12,7 @@ class GuessResponse(BaseModel):
     income_category_guess: int
     sex_guess: str
     age_guess: int
-    certainty_score: float # they should be outputting an integer but some models mess up
+    certainty_score: int
 
 
 class GuessResponseReasoning(BaseModel):
@@ -20,7 +20,7 @@ class GuessResponseReasoning(BaseModel):
     income_category_guess: int
     sex_guess: str
     age_guess: int
-    certainty_score: float 
+    certainty_score: int 
 
 
 def run_one_line(
@@ -30,7 +30,8 @@ def run_one_line(
     model_name: str,
     temperature: float,
     top_p: float,
-    include_reasoning: bool
+    include_reasoning: bool,
+    max_retries: int=5
 ) -> LLMOutput:
     with open(system_prompt_file, "r") as f:
         system_prompt = f.read()
@@ -51,10 +52,11 @@ def run_one_line(
         response_model=GuessResponse if not include_reasoning else GuessResponseReasoning,
         api_key=api_key,
         temperature=temperature,
-        top_p=top_p
+        top_p=top_p,
+        max_retries=max_retries
     )
 
-    print(f"Author: {line['author']}, Model: {model_name}, Temp: {temperature}, Top-p: {top_p}, Cost: {llm_output.cost:.5f} USD")
+    # print(f"Author: {line['author']}, Model: {model_name}, Temp: {temperature}, Top-p: {top_p}, Cost: {llm_output.cost:.5f} USD")
 
     return llm_output
 
@@ -68,7 +70,8 @@ def run_for_one_configuration(
     temperature: float,
     top_p: float,
     max_threads: int = 1,
-    include_reasoning: bool = False
+    include_reasoning: bool = False,
+    max_retries: int = 5
 ) -> float:
     # maps author to response
     output_guesses: list[dict] = []
@@ -91,7 +94,8 @@ def run_for_one_configuration(
                     model_name,
                     temperature,
                     top_p,
-                    include_reasoning
+                    include_reasoning,
+                    max_retries
                 ) for obj in inputs
             ]
         )
@@ -133,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_threads", type=int, default=5)
     parser.add_argument("--include_reasoning", action="store_true", help="Whether to include reasoning in the output")
     parser.add_argument("--num_trials", type=int, default=1, help="Number of trials to run for each configuration")
+    parser.add_argument("--max_retries", type=int, default=5, help="Maximum number of retries for LLM queries")
     args = parser.parse_args()
 
 
@@ -147,7 +152,7 @@ if __name__ == "__main__":
 
         for model_name in model_names:
             for temperature in args.temperatures:
-                total_overall_cost += run_for_one_configuration(
+                incremental_cost = run_for_one_configuration(
                     jsonl_input_file=args.jsonl_input_file,
                     output_dir=output_dir,
                     prompt_file=args.prompt_file,
@@ -156,7 +161,10 @@ if __name__ == "__main__":
                     temperature=temperature,
                     top_p=args.top_p,
                     max_threads=args.max_threads,
-                    include_reasoning=args.include_reasoning
+                    include_reasoning=args.include_reasoning,
+                    max_retries=args.max_retries
                 )
+                total_overall_cost += incremental_cost
+                print(f"Incremental cost for model {model_name} at temp {temperature}: {incremental_cost:.5f} USD")
     
     print(f"\n\nTotal overall cost for all trials: {total_overall_cost:.5f} USD")
