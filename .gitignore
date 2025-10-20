@@ -91,3 +91,5 @@ outputs/
 logs/
 
 keys.yaml
+.Rproj.user
+.Rhistory
