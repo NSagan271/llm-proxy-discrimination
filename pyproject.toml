@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm_attribute_inference"
+version = "0.0.1"
+description = "Testing LLMs' capability for attribute inference"
+readme = "README.md"
+requires-python = ">=3.9.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "packaging",
+    "pandas",
+    "openai",
+    "jsonlines",
+    "numpy",
+    "seaborn",
+    "requests"
+]
+
+[tool.setuptools.packages.find]
+where = ["python_code"]

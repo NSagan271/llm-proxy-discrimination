@@ -3,3 +3,4 @@ jsonlines
 numpy
 openai
 pyyaml
+requests

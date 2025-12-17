@@ -9,7 +9,7 @@ def main(
     df = pd.read_json(input_jsonl, lines=True)
     df["profile"] = df["author"]
     df["true_age"] = df["age"]
-    df["true_income"] = df["merged_income_level"]
+    df["true_income"] = df["income_category"]
     df["true_sex"] = df["sex"].str.lower()
     df = df[["profile", "true_age", "true_income", "true_sex"]]
     df["author_num"] = df["profile"].str.extract(r'(\d+)$').astype(int)

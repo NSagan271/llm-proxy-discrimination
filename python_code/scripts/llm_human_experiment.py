@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import jsonlines
@@ -5,26 +6,13 @@ from pydantic import BaseModel
 import argparse
 import multiprocessing
 
-from utils import query_openrouter, LLMOutput, get_key
-
-
-class GuessResponse(BaseModel):
-    income_category_guess: int
-    sex_guess: str
-    age_guess: int
-    certainty_score: int
-
-
-class GuessResponseReasoning(BaseModel):
-    reasoning: str
-    income_category_guess: int
-    sex_guess: str
-    age_guess: int
-    certainty_score: int 
+from llm_attr_inf.experiment.llm import LLMOutput, get_key, query_openrouter
+from llm_attr_inf.dataset.base import Dataset
 
 
 def run_one_line(
-    line: dict,
+    dataset: Dataset,
+    index: int,
     prompt_file: str,
     system_prompt_file: str,
     model_name: str,
@@ -35,34 +23,29 @@ def run_one_line(
 ) -> LLMOutput:
     with open(system_prompt_file, "r") as f:
         system_prompt = f.read()
-    with open(prompt_file, "r") as f:
-        unfilled_prompt = f.read()
     
-    comments = "\n\n".join(
-        [f"[Text {k+1}] {text}" for k, text in enumerate(line["text"])]
+    user_prompt = dataset.fill_in_prompt(
+        index, prompt_file, reasoning=include_reasoning,
+        random_state=index
     )
-    # look for {{comments}} in the prompt file
-    user_prompt = unfilled_prompt.replace("{{comments}}", comments)
 
     api_key = get_key("keys.yaml", "openrouter")
     llm_output: LLMOutput = query_openrouter(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         model_name=model_name,
-        response_model=GuessResponse if not include_reasoning else GuessResponseReasoning,
+        response_model=dataset.get_response_model(include_reasoning),
         api_key=api_key,
         temperature=temperature,
         top_p=top_p,
         max_retries=max_retries
     )
 
-    # print(f"Author: {line['author']}, Model: {model_name}, Temp: {temperature}, Top-p: {top_p}, Cost: {llm_output.cost:.5f} USD")
-
     return llm_output
 
 
 def run_for_one_configuration(
-    jsonl_input_file: str,
+    dataset_dir: str,
     output_dir: str,
     prompt_file: str,
     system_prompt_file: str,
@@ -79,34 +62,38 @@ def run_for_one_configuration(
 
     inputs = []
 
-    with jsonlines.open(jsonl_input_file) as reader:
-        for obj in reader:
-            inputs.append(obj)
-    
-    with multiprocessing.Pool(processes=max_threads) as pool:
-        results = pool.starmap(
-            run_one_line,
-            [
-                (
-                    obj,
-                    prompt_file,
-                    system_prompt_file,
-                    model_name,
-                    temperature,
-                    top_p,
-                    include_reasoning,
-                    max_retries
-                ) for obj in inputs
-            ]
+    dataset = Dataset.load(dataset_dir)
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        results = list(
+            executor.map(
+                lambda args: run_one_line(*args),
+                [
+                    (
+                        dataset,
+                        i,
+                        prompt_file,
+                        system_prompt_file,
+                        model_name,
+                        temperature,
+                        top_p,
+                        include_reasoning,
+                        max_retries
+                    )
+                    for i in range(dataset.num_profiles)
+                ]
+            )
         )
-    for obj, llm_output in zip(inputs, results):
+
+    for i in range(dataset.num_profiles):
+        llm_output = results[i]
+
         total_cost += llm_output.cost
         output_guesses.append({
-            "author": obj["author"],
+            "index": i,
             "success": llm_output.success,
             "llm_output": json.loads(llm_output.response.model_dump_json()) if llm_output.success else None,
             "num_retries": llm_output.num_retries,
-            "author_data": obj,
+            "author_data": dataset.attribute_df.iloc[i].to_dict(),
             "cost": llm_output.cost,
             "llm_config": {
                 "model_name": model_name,
@@ -114,7 +101,6 @@ def run_for_one_configuration(
                 "top_p": top_p,
             }
         })
-    
 
     os.makedirs(output_dir, exist_ok=True)
 

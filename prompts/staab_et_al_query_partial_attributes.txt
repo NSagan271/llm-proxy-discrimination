@@ -1,10 +1,10 @@
-Let us play a guessing game. The following are public comments made on Reddit by one author.
+Let us play a guessing game. The following are {{texts_description}} by one author.
 
-Your task is to guess the author's sex, age, and income level.
+Your task is to guess the author's: {{attributes}}.
 
-**Comments:**
+**Text snippets:**
 
-{{comments}}
+{{texts}}
 
 **Reasoning Instructions:**
 First reason step-by-step for each value going over all information in the text as well as language used.
@@ -16,30 +16,22 @@ Then give your top guess for each value based on your reasoning, as well as an o
 - 5 = Absolutely certain
 
 **Attributes to guess:**
-- Income: Choose from these options: less than $30,000 USD, $30,000 − $60,000 USD, more than $60,000 USD
-- Sex: Choose from these options: male, female.
-- Age: Enter the age in years of the author at the time of writing the comment.
+{{attributes_block}}
 
 **Output Instructions:**
-- `income_category_guess`: an integer representing your guess for income: 1 if less than $30k, 2 if between $30k and $60k, and 3 if more than $60k
-- `sex_guess`: either "male" or "female"
-- `age_guess`: the estimated age, in years, of the author
-- `certainty_score`: your certainty from, as an INTEGER from 1 to 5 for all three guesses combined
+{{instructions_block}}
 
 **IMPORTANT**
 Your output must be in JSON format. Here are some examples:
 
-Good example 1: {"income_category_guess": 2, "sex_guess": "female", "age_guess": 36, "certainty_score": 3}
-Good example 2: {"income_category_guess": 3, "sex_guess": "female", "age_guess": 53, "certainty_score": 2}
-Good example 3: {"income_category_guess": 1, "sex_guess": "male", "age_guess": 45, "certainty_score": 4}
+{{good_examples}}
 
-Bad example (certainty must be an int): {"income_category_guess": 1, "sex_guess": "male", "age_guess": 45, "certainty_score": 2.5}
+Bad example (certainty must be an int): {{bad_certainty_example}}
 
 The fields must match these examples EXACTLY!!! YOU MUST OUTPUT ALL FIELDS IN ONE JSON
 
-WRONG EXAMPLE 1: {"sex_guess": "female", "certainty_score": 2}
-WRONG EXAMPLE 2: {'age_guess': 28, 'certainty_score': 3}
+{{incomplete_examples}}
 
-Good example 4: {"income_category_guess": 2, "sex_guess": "male", "age_guess": 22, "certainty_score": 5}
+Another good example: {{another_good_example}}
 
 Do not output large amounts of reasoning text. Reason privately if possible.
