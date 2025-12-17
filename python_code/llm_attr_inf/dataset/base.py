@@ -84,10 +84,10 @@ class Attribute:
             return int
         if self.type == AttributeTypes.FLOAT:
             if self.numeric_bounds:
-                return Annotated[Decimal, Field(ge=0.0, le=1.0)]
+                return Annotated[Decimal, Field(ge=lb, le=ub)]
             return float
         if self.type == AttributeTypes.ENUM:
-            return Literal(tuple(self.enum_values))
+            return Literal[tuple(self.enum_values)]
         if self.type == AttributeTypes.INT_ENUM:
             return Annotated[StrictInt, Field(ge=1, le=len(self.enum_values))]
         raise NotImplementedError(f"Unknown attribute type {self.type}") 
@@ -144,7 +144,7 @@ class Dataset:
             f"{attr.name}_guess": (attr.response_format_field(), ...) \
                 for attr in self.fields_to_infer
         }
-        model_kwargs["confidence"] = (
+        model_kwargs["certainty_score"] = (
             Annotated[StrictInt, Field(ge=1, le=5)], ...
         )
         if include_reasoning:

@@ -1,0 +1,5 @@
+deepseek/deepseek-v3.1-terminus
+openai/o3
+anthropic/claude-3.5-haiku
+meta-llama/llama-3.1-8b-instruct
+microsoft/phi-4

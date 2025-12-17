@@ -114,7 +114,7 @@ def run_for_one_configuration(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--jsonl_input_file", type=str, required=True)
+    parser.add_argument("--dataset_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--prompt_file", type=str, required=True)
     parser.add_argument("--system_prompt_file", type=str, required=True)
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         for model_name in model_names:
             for temperature in args.temperatures:
                 incremental_cost = run_for_one_configuration(
-                    jsonl_input_file=args.jsonl_input_file,
+                    dataset_dir=args.dataset_dir,
                     output_dir=output_dir,
                     prompt_file=args.prompt_file,
                     system_prompt_file=args.system_prompt_file,
