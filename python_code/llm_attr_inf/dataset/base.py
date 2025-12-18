@@ -10,8 +10,8 @@ from pydantic import Field, StrictInt, create_model
 
 from llm_attr_inf.utils import fill_in_prompt_file, sample_enum_without_replacement, spaced_out_random_floats, spaced_out_random_ints
 
-REASONING_INSTR = "- `reasoning`: the reasoning behind your answer. IMPORTANT: Make sure to not use quotation marks in the reasoning, as it interferes with JSON parsing!"
-CERTAINTY_INSTR = "- `certainty_score`: your certainty, as an INTEGER from 1 to 5, for all three guesses combined"
+REASONING_INSTR = "- `reasoning`: the reasoning behind your answer, as a single string. IMPORTANT: Make sure to not use quotation marks in the reasoning, as it interferes with JSON parsing!"
+CERTAINTY_INSTR = "- `certainty_score`: your overall certainty, as an INTEGER from 1 to 5. This is one number for the entire profile, NOT per attribute"
 NUM_GOOD_EXAMPLES = 3
 NUM_BAD_EXAMPLES = 2
 
@@ -44,6 +44,7 @@ class AttributeTypes(IntEnum):
 class Attribute:
     name: str
     description: str
+    short_description: str
     type: AttributeTypes
     reasonable_range: tuple[float, float] = field(default=(1, 10))
     numeric_bounds: tuple[float, float] | None = field(default=None)
@@ -60,7 +61,7 @@ class Attribute:
             bounds = [round(bounds[0], 3), round(bounds[1], 3)]
         elif self.type == AttributeTypes.ENUM:
             values = f", ".join([f"\"{val}\"" for val in self.enum_values])
-            fmt = f"one of: {{{values}}}"
+            fmt = f"one of the following values: {{{values}}}"
         elif self.type == AttributeTypes.INT_ENUM:
             fmt = f"an integer representing your guess: "
             fmt += ", ".join([f"{i+1} if {v}" for i, v in enumerate(self.enum_values)])
@@ -70,7 +71,7 @@ class Attribute:
         if self.numeric_bounds is not None:
             b0, b1 = int(self.numeric_bounds[0]), int(self.numeric_bounds[1])
             fmt += f" between {b0} and {b1}"
-        return fmt
+        return f"{self.short_description}, as {fmt}"
     
     def response_format_field(self):
         if self.numeric_bounds:
@@ -92,7 +93,7 @@ class Attribute:
             return Annotated[StrictInt, Field(ge=1, le=len(self.enum_values))]
         raise NotImplementedError(f"Unknown attribute type {self.type}") 
 
-    def random_valid(self, num_samples=1):
+    def random_valid(self, num_samples=1, rng=None):
         """
         Generates num_samples random valid values for this attribute.
         Makes sure to cover a broad range of reasonable values.
@@ -100,23 +101,23 @@ class Attribute:
 
         if self.type == AttributeTypes.INT:
             return spaced_out_random_ints(
-                *self.reasonable_range, num_samples
+                *self.reasonable_range, num_samples, rng=rng
             )
         
         if self.type == AttributeTypes.FLOAT:
             return spaced_out_random_floats(
-                *self.reasonable_range, num_samples
+                *self.reasonable_range, num_samples, rng=rng
             )
         
         if self.type == AttributeTypes.ENUM:
             return sample_enum_without_replacement(
-                self.enum_values, num_samples
+                self.enum_values, num_samples, rng=rng
             )
         
         if self.type == AttributeTypes.INT_ENUM:
             return sample_enum_without_replacement(
                 list(range(1, len(self.enum_values) + 1)),
-                num_samples
+                num_samples, rng=rng
             )
         raise NotImplementedError(f"Unknown attribute type {self.type}")
 
@@ -133,7 +134,7 @@ class Dataset:
         return len(self.texts)
     
     def format_comments(self, index: int, include_metadata=False) -> str:
-        single_comment = len(self.texts[index]) == 0
+        single_comment = len(self.texts[index]) == 1
         return "\n\n".join(
             text.format(include_metadata, idx if not single_comment else None) \
                 for idx, text in enumerate(self.texts[index])
@@ -157,19 +158,20 @@ class Dataset:
     
     def _example_llm_outputs(
         self, reasoning: bool, num_samples=1,
-        incomplete=False, bad_certainty=False
+        incomplete=False, bad_certainty=False,
+        rng=None
     ):
         examples = []
         attr_values = {
-            attr.name: attr.random_valid(num_samples) \
+            attr.name: attr.random_valid(num_samples, rng=rng) \
                 for attr in self.fields_to_infer
         }
         certainties = sample_enum_without_replacement(
-            list(range(1, 6)), num_samples
+            list(range(1, 6)), num_samples, rng=rng
         )
         if bad_certainty:
             certainties = sample_enum_without_replacement(
-                [x + 0.5 for x in range(1, 5)], num_samples
+                [x + 0.5 for x in range(1, 5)], num_samples, rng=rng
             )
         
         if incomplete and len(self.fields_to_infer) == 1:
@@ -180,7 +182,7 @@ class Dataset:
             # to make an incomplete example, we can't just sample a random
             # attribute because we only have one. So we have to drop one of the
             # certainty or the guess.
-            to_drop = sample_enum_without_replacement(fields, num_samples)
+            to_drop = sample_enum_without_replacement(fields, num_samples, rng=rng)
         else:
             to_drop = None
 
@@ -208,8 +210,7 @@ class Dataset:
         reasoning=False,
         random_state: int=42
     ):
-        # TODO: use a thread-safe RNG here.
-        np.random.seed(random_state)
+        rng = np.random.default_rng(random_state)
 
         instructions_block="\n".join(
             f"- `{x.name}_guess`: {x.output_format()}" for x in self.fields_to_infer
@@ -217,12 +218,12 @@ class Dataset:
         if reasoning:
             instructions_block = f"{REASONING_INSTR}\n{instructions_block}"
         
-        good_examples = self._example_llm_outputs(
-            reasoning, num_samples=NUM_GOOD_EXAMPLES + 1
-        )
-        incomplete_examples = self._example_llm_outputs(
-            reasoning, incomplete=True, num_samples=NUM_BAD_EXAMPLES
-        )
+        # good_examples = self._example_llm_outputs(
+        #     reasoning, num_samples=NUM_GOOD_EXAMPLES + 1, rng=rng
+        # )
+        # incomplete_examples = self._example_llm_outputs(
+        #     reasoning, incomplete=True, num_samples=NUM_BAD_EXAMPLES, rng=rng
+        # )
 
         return fill_in_prompt_file(
             prompt_filename,
@@ -234,17 +235,17 @@ class Dataset:
                     f"- {x.name}: {x.description}" for x in self.fields_to_infer
                 ]),
                 instructions_block=instructions_block,
-                good_examples="\n".join([
-                    f"Good example {i+1}: {out}" for i, out in enumerate(good_examples[:-1])
-                ]),
-                bad_certainty_example=self._example_llm_outputs(
-                    reasoning, num_samples=1, bad_certainty=True
-                )[0],
-                incomplete_examples="\n".join([
-                    f"WRONG EXAMPLE {i+1}: {out}" \
-                    for i, out in enumerate(incomplete_examples)
-                ]),
-                another_good_example=good_examples[-1],
+                # good_examples="\n".join([
+                #     f"Good example {i+1}: {out}" for i, out in enumerate(good_examples[:-1])
+                # ]),
+                # bad_certainty_example=self._example_llm_outputs(
+                #     reasoning, num_samples=1, bad_certainty=True, rng=rng
+                # )[0],
+                # incomplete_examples="\n".join([
+                #     f"WRONG EXAMPLE {i+1}: {out}" \
+                #     for i, out in enumerate(incomplete_examples)
+                # ]),
+                # another_good_example=good_examples[-1],
             )
         )
 

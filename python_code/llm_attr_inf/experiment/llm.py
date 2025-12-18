@@ -74,6 +74,7 @@ def query_openrouter(
                     break
                 except BaseException as e:
                     # print(f"Error parsing JSON in match: {e}", file=sys.stderr)
+                    # raise e
                     continue
             assert parsed is not None, f"Could not parse JSON in the output: {content}"
             num_retries = i

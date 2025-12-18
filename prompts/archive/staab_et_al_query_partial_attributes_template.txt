@@ -18,17 +18,20 @@ Then give your top guess for each value based on your reasoning, as well as an o
 **Attributes to guess:**
 {{attributes_block}}
 
-**Output Fields:**
-Output a JSON with the following fields, strictly adhering to the data types listed:
+**Output Instructions:**
 {{instructions_block}}
 
-Output ONE JSON with these fields and NO others.
-
 **IMPORTANT**
-- Your output must be in JSON format.
-- The certainty must be an INTEGER. For example, you CANNOT have a certainty of 2.5.
-- YOU MUST OUTPUT ALL FIELDS IN ONE JSON.
-- Do NOT include any extra fields that were not in the "Output Fields" section.
-- You MUST GUESS for each attribute. "I don't know" or "neutral" is NOT a valid response.
+Your output must be in JSON format. Here are some examples:
+
+{{good_examples}}
+
+Bad example (certainty must be an int): {{bad_certainty_example}}
+
+The fields must match these examples EXACTLY!!! YOU MUST OUTPUT ALL FIELDS IN ONE JSON
+
+{{incomplete_examples}}
+
+Another good example: {{another_good_example}}
 
 Do not output large amounts of reasoning text. Reason privately if possible.

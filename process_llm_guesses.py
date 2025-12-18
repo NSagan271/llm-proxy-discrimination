@@ -31,7 +31,7 @@ def main(
                         "arm": model_arm, "author": obj["author"], "success": obj["success"],
                         "true_age": author_data["age"],
                         "true_sex": author_data["sex"],
-                        "true_income_level": author_data["merged_income_level"].lower()
+                        "true_income_level": author_data["income_category"].lower()
                     }
 
                     if obj["success"]:

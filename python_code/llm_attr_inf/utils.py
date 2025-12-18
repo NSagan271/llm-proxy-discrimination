@@ -33,44 +33,53 @@ def fill_in_prompt_file(
 def spaced_out_random_ints(
     min: int,
     max: int,
-    num_samples=1
+    num_samples=1,
+    rng=None,
 ):
+    if rng is None:
+        rng = np.random.default_rng()
     bins = np.linspace(
         min, max,
         num_samples + 1
     )
     bins = [int(round(b)) for b in bins]
     samples = [
-        int(np.random.random_integers(bins[i], bins[i+1])) \
+        int(rng.integers(bins[i], bins[i+1])) \
             for i in range(num_samples)
     ]
-    np.random.shuffle(samples)
+    rng.shuffle(samples)
     return samples
 
 
 def spaced_out_random_floats(
     min: int,
     max: int,
-    num_samples=1
+    num_samples=1,
+    rng=None
 ):
+    if rng is None:
+        rng = np.random.default_rng()
     bins = np.linspace(
         min, max,
         num_samples + 1
     )
     samples = [
-        float(np.random.uniform(bins[i], bins[i+1])) \
+        float(rng.uniform(bins[i], bins[i+1])) \
             for i in range(num_samples)
     ]
-    np.random.shuffle(samples)
+    rng.shuffle(samples)
     return samples
 
 
 def sample_enum_without_replacement(
     choices: list,
-    num_samples=1
+    num_samples=1,
+    rng=None
 ):
+    if rng is None:
+        rng = np.random.default_rng()
     enum_values = choices[:]
     while len(enum_values) < num_samples:
         enum_values = enum_values + choices
-    np.random.shuffle(enum_values)
+    rng.shuffle(enum_values)
     return enum_values[:num_samples]

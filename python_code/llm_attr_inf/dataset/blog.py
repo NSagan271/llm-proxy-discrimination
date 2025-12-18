@@ -17,15 +17,10 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 from lxml import etree
-import spacy
 
 from llm_attr_inf.dataset.base import ProfileText, Dataset
 from llm_attr_inf.dataset.attributes import AGE, GENDER
 
-
-# =====================
-# Configuration
-# =====================
 
 SEED = 42
 MIN_BLOG_LEN = 300
@@ -35,16 +30,6 @@ FILENAME_RE = re.compile(
     r".*/(\d+)\.(\w+)\.(\d+)\.([\w-]+)\.(\w+)\.xml"
 )
 
-# =====================
-# NLP setup
-# =====================
-
-nlp = spacy.load("en_core_web_sm")
-
-
-# =====================
-# Data classes
-# =====================
 
 @dataclass
 class Blog:
@@ -56,7 +41,7 @@ class Blog:
         if len(self.text) > max_len:
             self.text = (
                 self.text[:max_len]
-                + "... [post truncated for survey purposes]"
+                + "... [post truncated]"
             )
         return self
 
@@ -207,11 +192,11 @@ def build_blog_dataset(
     texts = [
         [ProfileText(
             text=text,
-            metadata={"date": {date}} if date else None
+            metadata={"date": date} if date else None
         )] for (text, date) in zip(df["blog"], df["date"])
     ]
 
-    df.drop(["blog","date"], inplace=True)
+    df.drop(["blog","date"], axis=1, inplace=True)
 
     dataset = Dataset(
         attribute_df=df,
