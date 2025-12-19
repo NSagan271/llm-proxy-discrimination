@@ -5,7 +5,7 @@ from tkinter import ttk
 
 from llm_attr_inf.dataset.base import Dataset
 
-def edit_text_snippets(snippets):
+def edit_text_snippets(snippets, highest_seen: int=-1):
     """
     Open a GUI to edit text snippets one-by-one.
     Returns the edited list after the window is closed.
@@ -65,7 +65,8 @@ def edit_text_snippets(snippets):
     btn_frame.pack(pady=8)
 
     def update_view():
-        header.config(text=f"Snippet {idx + 1} / {len(edited)}")
+        seen_text = " (seen)" if idx <= highest_seen else ""
+        header.config(text=f"Snippet {idx + 1} / {len(edited)}{seen_text}")
         text.delete("1.0", tk.END)
         text.insert(tk.END, edited[idx])
 
@@ -73,9 +74,10 @@ def edit_text_snippets(snippets):
         edited[idx] = text.get("1.0", tk.END).rstrip()
 
     def next_item(event=None):
-        nonlocal idx
+        nonlocal idx, highest_seen
         save_current()
         if idx < len(edited) - 1:
+            highest_seen = max(highest_seen, idx)
             idx += 1
             update_view()
 
@@ -99,18 +101,21 @@ def edit_text_snippets(snippets):
     update_view()
     root.mainloop()
 
-    return edited
+    return edited, highest_seen
 
 
 if __name__ == "__main__":
     REDACTED_PATH = "outputs/data/blogs_redacted"
     if os.path.exists(REDACTED_PATH):
         dataset = Dataset.load(REDACTED_PATH)
+        with open(f"{REDACTED_PATH}/highest_seen.txt", "r") as f:
+            highest_seen = int(f.readline())
     else:
         dataset = Dataset.load("outputs/data/blogs")
+        highest_seen = -1
     
     texts = sum([[t.text for t in texts] for texts in dataset.texts], start=[])
-    out = edit_text_snippets(texts[:])
+    out, highest_seen = edit_text_snippets(texts[:], highest_seen=highest_seen)
 
     idx = 0
     for tt in dataset.texts:
@@ -119,3 +124,5 @@ if __name__ == "__main__":
             idx += 1
     assert idx == len(texts)
     dataset.save(REDACTED_PATH)
+    with open(f"{REDACTED_PATH}/highest_seen.txt", "w") as f:
+        f.write(str(highest_seen))
