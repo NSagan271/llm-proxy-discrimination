@@ -17,6 +17,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 from lxml import etree
+import unicodedata
 
 from llm_attr_inf.dataset.base import ProfileText, Dataset
 from llm_attr_inf.dataset.attributes import AGE, GENDER
@@ -36,13 +37,12 @@ class Blog:
     text: str
     date: str = ""
 
-    def truncate(self, max_len: int) -> "Blog":
-        """Hard truncate with a marker."""
-        if len(self.text) > max_len:
-            self.text = (
-                self.text[:max_len]
-                + "... [post truncated]"
-            )
+    def truncate(self, target_len: int, max_len: int) -> "Blog":
+        self.text = truncate_blog_post(
+            self.text,
+            target_length=target_len,
+            max_length=max_len,
+        )
         return self
 
 
@@ -52,6 +52,64 @@ class Bin:
     low_age: Optional[int] = None
     high_age: Optional[int] = None
 
+
+
+CSS_RE = re.compile(r'\{[^}]*\}')
+HTML_RE = re.compile(r'<[^>]+>')
+
+
+def clean_post(text: str) -> str:
+    text = HTML_RE.sub(' ', text)
+    text = CSS_RE.sub(' ', text)
+    text = re.sub(r'urlLink\s+', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+def english_char_ratio(text: str) -> float:
+    if not text:
+        return 0.0
+
+    english = 0
+    total = 0
+
+    for ch in text:
+        if ch.isalpha():
+            total += 1
+            name = unicodedata.name(ch, "")
+            if "LATIN" in name:
+                english += 1
+
+    return english / total if total > 0 else 0.0
+
+
+def is_mostly_english(text, threshold=0.9):
+    return english_char_ratio(text) >= threshold
+
+
+def has_too_many_replacement_chars(text, max_frac=0.01):
+    if not text:
+        return True
+    return text.count("�") / len(text) > max_frac
+
+
+def clean_texts(texts):
+    cleaned_texts = []
+    cleaned_idxs = []
+
+    for i, raw in enumerate(texts):
+        raw = raw.strip()
+
+        text = clean_post(raw)
+
+        if has_too_many_replacement_chars(text):
+            continue
+
+        if not is_mostly_english(text, threshold=0.9):
+            continue
+        cleaned_idxs.append(i)
+        cleaned_texts.append(text)
+    return cleaned_texts, cleaned_idxs
 
 def get_blogs(
     filename: str,
@@ -66,18 +124,65 @@ def get_blogs(
     )
     tree = etree.parse(filename, parser)
 
-    texts = [x.text.strip() for x in tree.findall("post")]
-    dates = [x.text.strip() for x in tree.findall("date")]
+    texts, idxs = clean_texts([x.text for x in tree.findall("post")])
 
-    if len(texts) == len(dates):
-        blogs = [Blog(t, d) for t, d in zip(texts, dates)]
-    else:
-        blogs = [Blog(t) for t in texts]
+    dates = [x.text.strip() for x in tree.findall("date")]
+    dates = [dates[i] for i in idxs]
+
+    blogs = [Blog(t, d) for t, d in zip(texts, dates)]
 
     if min_length is not None:
         blogs = [b for b in blogs if len(b.text) > min_length]
 
     return blogs
+
+
+
+def truncate_blog_post(
+    text: str,
+    target_length: int,
+    max_length: int,
+    suffix: str = ""
+) -> str:
+    """
+    Truncate text according to the following rules:
+
+    1) Find the first sentence or clause boundary after target_length
+       but before max_length, and cut there.
+    2) Otherwise, find the first whitespace after target_length
+       but before max_length, and cut there.
+    3) Otherwise, cut exactly at max_length.
+
+    If truncation occurs, append `suffix`. If not, return the original text.
+    """
+    n = len(text)
+
+    # If already short enough, do nothing
+    if n <= max_length:
+        return text
+
+    # Ensure bounds make sense
+    target_length = max(0, min(target_length, n))
+    max_length = max(0, min(max_length, n))
+
+    window = text[target_length:max_length]
+
+    # 1) Sentence or clause boundaries
+    # Includes sentence end and strong clause punctuation
+    sentence_boundary_pattern = re.compile(r"[.!?;:]\s")
+    match = sentence_boundary_pattern.search(window)
+    if match:
+        cut_idx = target_length + match.end() - 1
+        return text[:cut_idx].rstrip() + suffix
+
+    # 2) Whitespace boundary
+    whitespace_match = re.search(r"\s", window)
+    if whitespace_match:
+        cut_idx = target_length + whitespace_match.start()
+        return text[:cut_idx].rstrip() + suffix
+
+    # 3) Hard cutoff
+    return text[:max_length].rstrip() + suffix
 
 
 def build_metadata_df(folder: str) -> pd.DataFrame:
@@ -92,6 +197,9 @@ def build_metadata_df(folder: str) -> pd.DataFrame:
             continue
 
         blogs = get_blogs(filename)
+        if len(blogs) == 0:
+            # all of the blogs got filtered out
+            continue
 
         rows.append({
             "user_id": match.group(1),
@@ -110,17 +218,16 @@ def sample_by_bins(
     df: pd.DataFrame,
     num_sample,
     min_blog_len,
-    trunc_len,
+    target_len,
+    max_len,
     seed
 ) -> pd.DataFrame:
     """
     Sample users evenly across demographic bins and attach one blog per user.
     """
     bins = [
-        Bin("male", high_age=19),
-        Bin("female", high_age=19),
-        Bin("male", low_age=20, high_age=29),
-        Bin("female", low_age=20, high_age=29),
+        Bin("male", low_age=18, high_age=29),
+        Bin("female", low_age=18, high_age=29),
         Bin("male", low_age=30),
         Bin("female", low_age=30),
     ]
@@ -154,8 +261,11 @@ def sample_by_bins(
             np.random.seed(rng_seed)
             rng_seed += 1
 
-            blog = np.random.choice(blogs)
-            blog.truncate(trunc_len)
+            blog: Blog = np.random.choice(blogs)
+            blog.truncate(
+                target_len=target_len,
+                max_len=max_len,
+            )
 
             record["blog"] = blog.text
             record["date"] = blog.date
@@ -174,7 +284,8 @@ def build_blog_dataset(
     output_dir="outputs/data/blogs",
     num_sample=600,
     min_blog_len=300,
-    trunc_len=350,
+    target_length=350,
+    max_length=400,
     seed=42
 ):
     print("Building metadata dataframe...")
@@ -185,7 +296,8 @@ def build_blog_dataset(
         df_meta,
         num_sample=num_sample,
         min_blog_len=min_blog_len,
-        trunc_len=trunc_len,
+        target_len=target_length,
+        max_len=max_length,
         seed=seed
     )
 
@@ -201,8 +313,9 @@ def build_blog_dataset(
     dataset = Dataset(
         attribute_df=df,
         texts=texts,
-        texts_description="blog posts from blogger.com",
-        fields_to_infer=[AGE, GENDER]
+        texts_description="the first part of a blog post",
+        fields_to_infer=[AGE, GENDER],
+        extra_description="The rest of the post will be cut off, maybe in the middle of a sentence."
     )
 
     print(f"Saving dataset to directory {output_dir}")

@@ -35,10 +35,16 @@ def main():
         help="Minimum blog length (characters)",
     )
     parser.add_argument(
-        "--trunc-len",
+        "--max-len",
+        type=int,
+        default=400,
+        help="Truncation length (characters)",
+    )
+    parser.add_argument(
+        "--target-len",
         type=int,
         default=350,
-        help="Truncation length (characters)",
+        help="Target blog length (characters)",
     )
     parser.add_argument(
         "--seed",
@@ -60,7 +66,8 @@ def main():
         output_dir=args.output_dir,
         num_sample=args.num_sample,
         min_blog_len=args.min_blog_len,
-        trunc_len=args.trunc_len,
+        target_length=args.target_len,
+        max_length=args.max_len,
         seed=args.seed,
     )
 

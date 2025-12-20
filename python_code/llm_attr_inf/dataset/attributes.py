@@ -16,7 +16,7 @@ AGE_ADULT.reasonable_range = (18, 80)
 
 GENDER = Attribute(
     name="gender",
-    description="sex of the author (male or female)",
+    description="gender of the author (male or female)",
     short_description="the author's gender",
     type=AttributeTypes.ENUM,
     enum_values=["male", "female"]

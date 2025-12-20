@@ -128,6 +128,7 @@ class Dataset:
     texts: list[list[ProfileText]]
     texts_description: str
     fields_to_infer: list[Attribute]
+    extra_description: str = ""
 
     @property
     def num_profiles(self):
@@ -235,6 +236,7 @@ class Dataset:
                     f"- {x.name}: {x.description}" for x in self.fields_to_infer
                 ]),
                 instructions_block=instructions_block,
+                extra_info=self.extra_description,
                 # good_examples="\n".join([
                 #     f"Good example {i+1}: {out}" for i, out in enumerate(good_examples[:-1])
                 # ]),
@@ -273,7 +275,8 @@ class Dataset:
         with open(f"{output_directory}/metadata.json", "w") as f:
             json.dump({
                 "fields_to_infer": [asdict(x) for x in self.fields_to_infer],
-                "texts_description": self.texts_description
+                "texts_description": self.texts_description,
+                "extra_description": self.extra_description
             }, f, indent=2)
     
     @classmethod
@@ -296,6 +299,7 @@ class Dataset:
             texts_description=metadata["texts_description"],
             fields_to_infer = [
                 Attribute(**x) for x in metadata["fields_to_infer"]
-            ]
+            ],
+            extra_description=metadata.get("extra_description", "")
         )
 

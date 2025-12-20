@@ -1,6 +1,8 @@
-Let us play a guessing game. The following are {{texts_description}} by one author.
+Let us play a guessing game. The following is {{texts_description}} by one author.
+{{extra_info}}
 
 Your task is to guess the author's: {{attributes}}.
+These attributes may not be clear from the text. Please just provide your best guesses.
 
 **Text snippets:**
 
